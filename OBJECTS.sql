@@ -174,23 +174,38 @@ VALUES ('Jozef', 'Novak', '+421900123456', 'jozef.novak@example.com', 'W');
 INSERT INTO USER_TABLE (NAME, SURNAME, PHONE_NUMBER, EMAIL, USER_TYPE)
 VALUES ('Martina', 'Kovacova', '+421900987654', 'martina.kovacova@example.com', 'R');
 
+INSERT INTO USER_TABLE (NAME, SURNAME, PHONE_NUMBER, EMAIL, USER_TYPE)
+VALUES ('Peter', 'Horvath', '+421911112233', 'peter.horvath@example.com', 'R');
+
+INSERT INTO USER_TABLE (NAME, SURNAME, PHONE_NUMBER, EMAIL, USER_TYPE)
+VALUES ('Zuzana', 'Mlynarova', '+421944556677', 'zuzana.mlynarova@example.com', 'W');
+
 -- Insert into WORKER (Using existing ID from USER_TABLE)
 INSERT INTO WORKER (ID, ROLE)
 VALUES (1, 'Librarian');
 
 INSERT INTO WORKER (ID, ROLE)
-VALUES (2, 'Assistant');
+VALUES (4, 'Archivist');
 
 -- Insert into READER (Using existing ID from USER_TABLE)
 INSERT INTO READER (ID, STREET, CITY, ZIP_CODE, COUNTRY, EXPIRATION_DATE)
 VALUES (2, 'Hlavna 25', 'Bratislava', '12345', 'Slovakia', TO_DATE('2025-12-31', 'YYYY-MM-DD'));
+
+INSERT INTO READER (ID, STREET, CITY, ZIP_CODE, COUNTRY, EXPIRATION_DATE)
+VALUES (3, 'Mierova 12', 'Kosice', '04011', 'Slovakia', TO_DATE('2026-05-31', 'YYYY-MM-DD'));
 
 -- Insert into TITLE
 INSERT INTO TITLE (NAME, PUBLICATION_YEAR, LANGUAGE, TITLE_TYPE)
 VALUES ('The Great Adventure', 2022, 'Slovak', 'B');
 
 INSERT INTO TITLE (NAME, PUBLICATION_YEAR, LANGUAGE, TITLE_TYPE)
+VALUES ('Legends of the Forest', 2020, 'Slovak', 'B');
+
+INSERT INTO TITLE (NAME, PUBLICATION_YEAR, LANGUAGE, TITLE_TYPE)
 VALUES ('Monthly Tech Digest', 2023, 'English', 'M');
+
+INSERT INTO TITLE (NAME, PUBLICATION_YEAR, LANGUAGE, TITLE_TYPE)
+VALUES ('Science Weekly', 2024, 'English', 'M');
 
 -- Insert into BOOK (Linking with existing titles)
 INSERT INTO BOOK (ID, ISBN)
@@ -201,10 +216,10 @@ VALUES (2, '978-0-9876-5432-1');
 
 -- Insert into MAGAZINE
 INSERT INTO MAGAZINE (ID, ISSUE_NUMBER, PUBLISHER, ISSN)
-VALUES (1, '2023-01', 'Tech Media', '2049-3630');
+VALUES (3, '2023-01', 'Tech Media', '2049-3630');
 
 INSERT INTO MAGAZINE (ID, ISSUE_NUMBER, PUBLISHER, ISSN)
-VALUES (2, '2023-02', 'News Publishers', '0032-8472');
+VALUES (4, '2023-02', 'News Publishers', '0032-8472');
 
 -- Insert into AUTHOR
 INSERT INTO AUTHOR (NAME)
@@ -218,11 +233,14 @@ INSERT INTO BOOK_AUTHOR (BOOK_ID, AUTHOR_ID)
 VALUES (1, 1);
 
 INSERT INTO BOOK_AUTHOR (BOOK_ID, AUTHOR_ID)
-VALUES (2, 2);
+VALUES (2, 1);
 
 -- Insert into GENRE
 INSERT INTO GENRE (NAME)
-VALUES ('Adventure');
+VALUES ('Fantasy');
+
+INSERT INTO GENRE (NAME)
+VALUES ('Science');
 
 INSERT INTO GENRE (NAME)
 VALUES ('Technology');
@@ -232,7 +250,13 @@ INSERT INTO TITLE_GENRE (TITLE_ID, GENRE_ID)
 VALUES (1, 1);
 
 INSERT INTO TITLE_GENRE (TITLE_ID, GENRE_ID)
-VALUES (2, 2);
+VALUES (2, 1);
+
+INSERT INTO TITLE_GENRE (TITLE_ID, GENRE_ID)
+VALUES (3, 3);
+
+INSERT INTO TITLE_GENRE (TITLE_ID, GENRE_ID)
+VALUES (4, 2);
 
 -- Insert into COPY
 INSERT INTO COPY_TABLE (STATUS, LOCATION, TITLE_ID)
@@ -241,31 +265,101 @@ VALUES ('available', 'Shelf A1', 1);
 INSERT INTO COPY_TABLE (STATUS, LOCATION, TITLE_ID)
 VALUES ('borrowed', 'Shelf B2', 2);
 
+INSERT INTO COPY_TABLE (STATUS, LOCATION, TITLE_ID)
+VALUES ('borrowed', 'Shelf C3', 3);
+
+INSERT INTO COPY_TABLE (STATUS, LOCATION, TITLE_ID)
+VALUES ('reserved', 'Shelf C3', 3);
+
+INSERT INTO COPY_TABLE (STATUS, LOCATION, TITLE_ID)
+VALUES ('reserved', 'Shelf D1', 4);
+
 -- Insert into RESERVATION
 INSERT INTO RESERVATION (STATUS, READER_ID, TITLE_ID)
-VALUES ('active', 2, 1);
+VALUES ('active', 3, 4);
 
 INSERT INTO RESERVATION (STATUS, READER_ID, TITLE_ID)
-VALUES ('completed', 2, 2);
+VALUES ('active', 2, 3);
 
--- Insert into LOAN
 -- Insert into LOAN
 INSERT INTO LOAN
 (BORROW_DATE, DUE_DATE, RETURN_DATE, STATUS, READER_ID, COPY_ID, WORKER_ID)
 VALUES (TO_TIMESTAMP('2025-03-01 10:00:00', 'YYYY-MM-DD HH24:MI:SS'),
         TO_TIMESTAMP('2025-03-15 10:00:00', 'YYYY-MM-DD HH24:MI:SS'),
-        NULL, 'active', 2, 1, 1);
-
-INSERT INTO LOAN
-(BORROW_DATE, DUE_DATE, RETURN_DATE, STATUS, READER_ID, COPY_ID, WORKER_ID)
-VALUES (TO_TIMESTAMP('2025-03-05 14:00:00', 'YYYY-MM-DD HH24:MI:SS'),
-        TO_TIMESTAMP('2025-03-20 14:00:00', 'YYYY-MM-DD HH24:MI:SS'),
-        NULL, 'active', 2, 2, 2);
+        NULL, 'active', 3, 2, 1);
 
 INSERT INTO LOAN
 (BORROW_DATE, DUE_DATE, RETURN_DATE, STATUS, READER_ID, COPY_ID, WORKER_ID)
 VALUES (TO_TIMESTAMP('2025-03-05 14:00:00', 'YYYY-MM-DD HH24:MI:SS'),
         TO_TIMESTAMP('2025-03-20 14:00:00', 'YYYY-MM-DD HH24:MI:SS'),
         TO_TIMESTAMP('2025-03-18 16:00:00', 'YYYY-MM-DD HH24:MI:SS'),
-        'returned', 2, 2, 2);
+        'returned', 3, 4, 1);
 
+INSERT INTO LOAN
+(BORROW_DATE, DUE_DATE, RETURN_DATE, STATUS, READER_ID, COPY_ID, WORKER_ID)
+VALUES (TO_TIMESTAMP('2025-04-01 09:30:00', 'YYYY-MM-DD HH24:MI:SS'),
+        TO_TIMESTAMP('2025-04-15 09:30:00', 'YYYY-MM-DD HH24:MI:SS'),
+        NULL, 'returned', 2, 2, 1);
+
+-------------------------------------------------------------------------------------
+-- SELECT 1: Join tables - List readers with their basic information
+-------------------------------------------------------------------------------------
+SELECT u.NAME, u.SURNAME, u.EMAIL, r.CITY
+FROM USER_TABLE u
+         JOIN READER r ON u.ID = r.ID;
+
+-------------------------------------------------------------------------------------
+-- SELECT 2: Join tables - List magazines with their ISSN
+-------------------------------------------------------------------------------------
+SELECT t.NAME AS MAGAZINE_TITLE, m.ISSN
+FROM MAGAZINE m
+         JOIN TITLE t ON m.ID = t.ID;
+
+-------------------------------------------------------------------------------------
+-- SELECT 3: Join three tables - List authors with book titles
+-------------------------------------------------------------------------------------
+SELECT a.NAME AS AUTHOR_NAME, t.NAME AS BOOK_TITLE
+FROM AUTHOR a
+         JOIN BOOK_AUTHOR ba ON a.ID = ba.AUTHOR_ID
+         JOIN BOOK b ON ba.BOOK_ID = b.ID
+         JOIN TITLE t ON b.ID = t.ID;
+
+-------------------------------------------------------------------------------------
+-- SELECT 4: GROUP BY + aggregation - Count loans by status (active, returned)
+-------------------------------------------------------------------------------------
+SELECT STATUS, COUNT(*) AS LOAN_COUNT
+FROM LOAN
+GROUP BY STATUS;
+
+-------------------------------------------------------------------------------------
+-- SELECT 5: GROUP BY + aggregation - Count titles by genre
+-------------------------------------------------------------------------------------
+SELECT g.NAME AS GENRE_NAME, COUNT(*) AS TITLE_COUNT
+FROM GENRE g
+         JOIN TITLE_GENRE tg ON g.ID = tg.GENRE_ID
+GROUP BY g.NAME;
+
+-------------------------------------------------------------------------------------
+-- SELECT 6: EXISTS - List readers with at least one active reservation
+-------------------------------------------------------------------------------------
+SELECT u.NAME, u.SURNAME
+FROM USER_TABLE u
+WHERE USER_TYPE = 'R'
+  AND EXISTS (
+    SELECT 1
+    FROM RESERVATION r
+    WHERE r.READER_ID = u.ID
+      AND r.STATUS = 'active'
+);
+
+-------------------------------------------------------------------------------------
+-- SELECT 7: IN (with nested SELECT) - List books currently loaned
+-------------------------------------------------------------------------------------
+SELECT t.NAME AS BOOK_TITLE
+FROM TITLE t
+WHERE t.ID IN (
+    SELECT c.TITLE_ID
+    FROM COPY_TABLE c
+             JOIN LOAN l ON c.ID = l.COPY_ID
+    WHERE l.STATUS = 'returned'
+);

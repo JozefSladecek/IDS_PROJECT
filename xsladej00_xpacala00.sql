@@ -165,12 +165,10 @@ CREATE TABLE LOAN
     CONSTRAINT fk_loan_worker FOREIGN KEY (WORKER_ID) REFERENCES WORKER (ID)
 );
 
-
-
 -------------------------------------------------------------------------------------
--- TRIGGERS --
 
--- loan_validation_trigger --
+-------- TRIGGERS --------
+-- loan_validation_trigger TODO: description
 CREATE OR REPLACE TRIGGER loan_validation_trigger
 BEFORE INSERT ON LOAN
 FOR EACH ROW
@@ -178,7 +176,7 @@ BEGIN
     DECLARE
         v_status VARCHAR(20);
     BEGIN
-        -- status for copy
+        -- Status for copy
         SELECT STATUS INTO v_status
         FROM COPY_TABLE
         WHERE ID = :NEW.COPY_ID;
@@ -193,14 +191,14 @@ BEGIN
         :NEW.BORROW_DATE := CURRENT_TIMESTAMP;
     END IF;
 
-    -- set due date ( if not basic 14 days )
+    -- Set due date ( if not basic 14 days )
     IF :NEW.DUE_DATE IS NULL THEN
         :NEW.DUE_DATE := :NEW.BORROW_DATE + INTERVAL '14' DAY;
     END IF;
 
     :NEW.STATUS := 'active';
 
-    -- set status
+    -- Set status to 'borrowed'
     UPDATE COPY_TABLE
     SET STATUS = 'borrowed'
     WHERE ID = :NEW.COPY_ID;
@@ -212,20 +210,20 @@ BEFORE UPDATE OF RETURN_DATE ON LOAN
 FOR EACH ROW
 WHEN (NEW.RETURN_DATE IS NOT NULL AND OLD.RETURN_DATE IS NULL)
 BEGIN
-    -- Kontrola, či bola kniha vrátená po termíne
+    -- Check if the book is overdue
     IF :NEW.RETURN_DATE > :OLD.DUE_DATE THEN
         :NEW.STATUS := 'overdue';
     ELSE
         :NEW.STATUS := 'returned';
     END IF;
 
-    -- Aktualizácia stavu kópie na 'available'
+    -- Set status to 'available'
     UPDATE COPY_TABLE
     SET STATUS = 'available'
     WHERE ID = :OLD.COPY_ID;
 END;
--------------------------------------------------------------------------------------
 
+-------------------------------------------------------------------------------------
 
 -- Inserting sample data into the tables
 -- Insert into USER_TABLE
@@ -335,7 +333,6 @@ VALUES ('reserved', 'Shelf C3', 3);
 INSERT INTO COPY_TABLE (STATUS, LOCATION, TITLE_ID)
 VALUES ('reserved', 'Shelf D1', 4);
 
-
 -- Insert into RESERVATION
 INSERT INTO RESERVATION (STATUS, READER_ID, TITLE_ID)
 VALUES ('active', 3, 4);
@@ -364,7 +361,8 @@ VALUES ('active', 2, 3);
 --         NULL, 'returned', 2, 2, 1);
 
 -------------------------------------------------------------
--- INSERT - for demostrating materialized view --
+
+-- INSERT - for demonstrating materialized view
 -- set available status for insert
 UPDATE COPY_TABLE SET STATUS = 'available' WHERE ID IN (2, 4);
 
@@ -375,13 +373,12 @@ VALUES (3, 2, 1);
 -- available -> borrowed
 INSERT INTO LOAN (READER_ID, COPY_ID, WORKER_ID)
 VALUES (3, 4, 1);
--------------------------------------------------------------
-
-
 
 -------------------------------------------------------------
--- Trigger loan_validation_trigger DEMONSTRATION --
 
+
+-------- Trigger DEMONSTRATION --------
+-- loan_validation_trigger
 --  1: state before creating loan (available)
 SELECT ID, STATUS FROM COPY_TABLE WHERE ID = 1;
 
@@ -392,8 +389,8 @@ VALUES (2, 1, 1);
 --  3: state after creating loan (borrowed)
 SELECT ID, STATUS FROM COPY_TABLE WHERE ID = 1;
 
--- Trigger update_on_book_return DEMONSTRATION --
 
+-- update_on_book_return
 --  1: get ID of loan by copy id
 SELECT ID FROM LOAN WHERE COPY_ID = 1 AND RETURN_DATE IS NULL;
 
@@ -409,15 +406,15 @@ ORDER BY ID DESC FETCH FIRST 1 ROW ONLY;
 
 --  4: check state in copy table (available)
 SELECT ID, STATUS FROM COPY_TABLE WHERE ID = 1;
+
+
 -------------------------------------------------------------
-
-
-
-
+-- Materialized view
+-------------------------------------------------------------
+ -- TODO: description
 
 DROP MATERIALIZED VIEW MV_LOAN_OVERVIEW;
 
- -- 🟦 Vytvorenie materializovaného pohľadu (u používateľa ALEXANDRA)
 CREATE MATERIALIZED VIEW MV_LOAN_OVERVIEW
 BUILD IMMEDIATE
 REFRESH ON DEMAND
@@ -436,17 +433,17 @@ JOIN USER_TABLE U ON R.ID = U.ID
 JOIN COPY_TABLE C ON L.COPY_ID = C.ID
 JOIN TITLE T ON C.TITLE_ID = T.ID;
 
--- 🔍 Ukážkový dotaz nad materializovaným pohľadom
 SELECT * FROM MV_LOAN_OVERVIEW
 WHERE LOAN_STATUS = 'active';
 
 
-
-
--- Vytvorenie indexu pre optimalizáciu dotazov s TITLE_ID
+-------------------------------------------------------------
+-- Explain plan
+-------------------------------------------------------------
+-- Create INDEX
 CREATE INDEX idx_copy_title_id ON COPY_TABLE(TITLE_ID);
 
--- Dotaz, ktorý bude optimalizovaný:
+-- Optimizing query for available copies of titles
 EXPLAIN PLAN FOR
 SELECT t.NAME AS TITLE_NAME, COUNT(c.ID) AS AVAILABLE_COPIES
 FROM TITLE t
@@ -454,13 +451,11 @@ JOIN COPY_TABLE c ON t.ID = c.TITLE_ID
 WHERE c.STATUS = 'available'
 GROUP BY t.NAME;
 
--- Zobrazenie plánu
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 
--- Po analýze plánu, pridáme ďalší index pre STATUS
+-- Add another index to optimize the query
 CREATE INDEX idx_copy_status ON COPY_TABLE(STATUS);
 
--- Znova spustíme EXPLAIN PLAN
 EXPLAIN PLAN FOR
 SELECT t.NAME AS TITLE_NAME, COUNT(c.ID) AS AVAILABLE_COPIES
 FROM TITLE t
@@ -468,24 +463,134 @@ JOIN COPY_TABLE c ON t.ID = c.TITLE_ID
 WHERE c.STATUS = 'available'
 GROUP BY t.NAME;
 
--- Zobrazenie nového plánu pre porovnanie
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 
+-------------------------------------------------------------
+-- Complex query with WHILE and CASE
+-- Get list of readers with the number of their loans
+-- Rate activity level of readers based on the num. of loans
+-------------------------------------------------------------
+-- ReaderLoans
+WITH ReaderLoans AS (
+    SELECT
+        r.ID AS Reader_ID,
+        COUNT(l.ID) AS Loan_Count
+    FROM READER r
+        LEFT JOIN LOAN l ON r.ID = l.READER_ID
+    GROUP BY r.ID
+)
+SELECT
+    u.NAME,
+    u.SURNAME,
+    rl.Loan_Count,
+    CASE
+        WHEN rl.Loan_Count = 0 THEN 'No loans'
+        WHEN rl.Loan_Count BETWEEN 1 AND 2 THEN 'Low activity'
+        WHEN rl.Loan_Count BETWEEN 3 AND 5 THEN 'Medium activity'
+        ELSE 'High activity'
+        END AS ActivityLevel
+FROM ReaderLoans rl
+    JOIN USER_TABLE u ON rl.Reader_ID = u.ID;
 
-------------------------------------------------------------- PRIVILIGES
-GRANT ALL ON "USER_TABLE" TO xpacala00;
-GRANT ALL ON "WORKER" TO xpacala00;
-GRANT ALL ON "READER" TO xpacala00;
-GRANT ALL ON "TITLE" TO xpacala00;
-GRANT ALL ON "BOOK" TO xpacala00;
-GRANT ALL ON "MAGAZINE" TO xpacala00;
-GRANT ALL ON "COPY_TABLE" TO xpacala00;
-GRANT ALL ON "LOAN" TO xpacala00;
-GRANT ALL ON "RESERVATION" TO xpacala00;
-GRANT ALL ON "AUTHOR" TO xpacala00;
-GRANT ALL ON "BOOK_AUTHOR" TO xpacala00;
-GRANT ALL ON "GENRE" TO xpacala00;
-GRANT ALL ON "TITLE_GENRE" TO xpacala00;
 
-GRANT ALL ON "MV_LOAN_OVERVIEW" TO xpacala00;
-------------------------------------------------------------- PRIVILIGES
+-------------------------------------------------------------
+-- Procedure to show the number of books per genre
+-------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE show_books_per_genre IS
+    CURSOR c_genres IS
+        SELECT ID, NAME FROM GENRE;
+
+    v_genre_id   GENRE.ID%TYPE;
+    v_genre_name GENRE.NAME%TYPE;
+    v_count      NUMBER;
+
+BEGIN
+    FOR genre_rec IN c_genres LOOP
+            v_genre_id := genre_rec.ID;
+            v_genre_name := genre_rec.NAME;
+
+            BEGIN
+                SELECT COUNT(DISTINCT T.ID)
+                INTO v_count
+                FROM TITLE T
+                         JOIN TITLE_GENRE TG ON T.ID = TG.TITLE_ID
+                WHERE TG.GENRE_ID = v_genre_id;
+
+                DBMS_OUTPUT.PUT_LINE('Genre: ' || v_genre_name || ' -> ' || v_count || ' titles');
+
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    DBMS_OUTPUT.PUT_LINE('No titles found for genre: ' || v_genre_name);
+                WHEN OTHERS THEN
+                    DBMS_OUTPUT.PUT_LINE('Error for genre ' || v_genre_name || ': ' || SQLERRM);
+            END;
+        END LOOP;
+
+END;
+
+BEGIN
+    show_books_per_genre;
+END;
+
+
+-------------------------------------------------------------
+-- Procedure to delete old reservations
+-------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE delete_old_reservations(p_days NUMBER) IS
+    CURSOR c_old_reservations IS
+        SELECT * FROM RESERVATION
+        WHERE STATUS = 'active'
+          AND DATE_ < SYSDATE - p_days;
+
+    v_reservation RESERVATION%ROWTYPE;
+
+BEGIN
+    OPEN c_old_reservations;
+    LOOP
+        FETCH c_old_reservations INTO v_reservation;
+        EXIT WHEN c_old_reservations%NOTFOUND;
+
+        BEGIN
+            -- Aktualizácia rezervácie
+            UPDATE RESERVATION
+            SET STATUS = 'canceled'
+            WHERE ID = v_reservation.ID;
+
+            DBMS_OUTPUT.PUT_LINE('Canceled reservation ID: ' || v_reservation.ID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                DBMS_OUTPUT.PUT_LINE('Error canceling reservation ID ' || v_reservation.ID || ': ' || SQLERRM);
+        END;
+
+    END LOOP;
+    CLOSE c_old_reservations;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('General error in delete_old_reservations: ' || SQLERRM);
+END;
+
+BEGIN
+    delete_old_reservations(30); -- Zruší rezervácie staršie ako 30 dní
+END;
+
+-------------------------------------------------------------
+-- Privileges
+-------------------------------------------------------------
+
+GRANT ALL ON "USER_TABLE" TO XPACALA00;
+GRANT ALL ON "WORKER" TO XPACALA00;
+GRANT ALL ON "READER" TO XPACALA00;
+GRANT ALL ON "TITLE" TO XPACALA00;
+GRANT ALL ON "BOOK" TO XPACALA00;
+GRANT ALL ON "MAGAZINE" TO XPACALA00;
+GRANT ALL ON "COPY_TABLE" TO XPACALA00;
+GRANT ALL ON "LOAN" TO XPACALA00;
+GRANT ALL ON "RESERVATION" TO XPACALA00;
+GRANT ALL ON "AUTHOR" TO XPACALA00;
+GRANT ALL ON "BOOK_AUTHOR" TO XPACALA00;
+GRANT ALL ON "GENRE" TO XPACALA00;
+GRANT ALL ON "TITLE_GENRE" TO XPACALA00;
+
+GRANT ALL ON "MV_LOAN_OVERVIEW" TO XPACALA00;
